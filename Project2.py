@@ -22,7 +22,17 @@ neg_words = ['no', 'not', 'none', 'nobody', 'nothing', 'neither', 'nowhere', 'ne
 str_int = ['very', 'extremely', 'really', 'exceptionally', 'totally', 'utterly', 'completely']
 # Weak intensifiers
 w_int = ['little', 'hardly', 'less', 'nearly', 'almost', 'barely']
-tri = [] # Holds the trigrams, but is discarded after first use, new_novel holds the trigrams afterwards
+# Both weak and strong intensifiers
+both_int = ['little', 'hardly', 'less', 'nearly', 'almost', 'barely','very', 'extremely', 'really', 'exceptionally', 'totally', 'utterly', 'completely']
+# Mix of weak intensifiers, strong intensifiers and negation words. Needed for emotional_strength count
+ints_and_neg_words = ['no', 'not', 'none', 'nobody', 'nothing', 'neither', 'nowhere', 'never', 'little', 'hardly', 'less', 'nearly', 'almost', 'barely','very', 'extremely', 'really', 'exceptionally', 'totally', 'utterly', 'completely']
+
+tri = []
+single = 0
+bigrams = 0
+trigram = 0
+all_emo_words = 0
+emotional_strength = 0.0
 
 # Input for the L8 directory
 def directory_input(message):
@@ -59,6 +69,7 @@ emo_words_list = {}
 new_novel = []
 # helper list variable for the mini for loop below
 holding = []
+
 
 # For some reason the tuples were getting deleted, however when copied over
 # to a new_novel, they weren't getting deleted and thats why I have This
@@ -97,11 +108,53 @@ for subdir, dirs, files in os.walk(root):
         # Should loop through trigrams and compares them to emotion list in big_dict
         for sent in new_novel:
             for tup in sent:
-                # Counts the single emotion words
+                # Finds WORD regardless of what is in front of it
                 if tup[2] in emo_words_list[emotion]:
-                    big_dict[emotion] += 1
-
+                    all_emo_words +=1
+                    # Finds WORD, so 'lonley single emotion words'. Taking into consideration of whats infront of it (NO NEG WORDS).
+                    if tup[0] not in neg_words and tup[1] not in neg_words:
+                        big_dict[emotion] += 1
+                        single += 1
+                        print("single:",tup, "for EMOTION:",emotion)
+                    # Finds NEG EMO
+                    if tup[1] in neg_words and tup[0] not in neg_words:
+                        big_dict["no "+ emotion] +=1
+                        bigrams += 1
+                        print("NEG EMO:", tup, "for EMOTION: no",emotion)
+                    # Finds NEG NEG EMO
+                    if tup[0] in neg_words and tup[1] in neg_words:
+                        big_dict["no "+ emotion] +=1
+                        print("NEG NEG EMO:",tup, "for EMOTION: no",emotion)
+                    # FINDS NEG STRON_INT WORD which would be 'negative' (ie. I am not very happy)
+                    # Not truley negative because it will also count (ie. I am not very sad)
+                    # NEG x STRONG_INT(POS)= NEG
+                    if tup[1] in str_int and tup[0] in neg_words:
+                        big_dict["no "+ emotion] +=1
+                        trigram += 1
+                        print("NEG STR_INT EMO:",tup, "for EMOTION: no",emotion)
+                    # Finds NEG WEAK_INT WORD which would be 'positive' (ie. I am no less happy)
+                    #  NEG x WEAK_INT(NEG) = POS
+                    if tup[1] in w_int and tup[0] in neg_words:
+                        big_dict[emotion] +=1
+                        trigram +=1
+                        print("NE W_INT EMO:",tup, "for EMOTION:",emotion)
+                    # Counts emotional strength: finds BLANK STR_INT EMO, so just emo word with strong intensifier, without negation word in front.
+                    if tup[0] not in neg_words and tup[1] in str_int:
+                        emotional_strength += 1.5
+                        print("BLANK STR_INT EMO:",tup, "for EMOTION:",emotion)
+                    # Counts emotional strength: find BLANK W_INT EMO, so just emo word with weak intensifier and without negation word in front.
+                    if tup[0] not in neg_words and tup[1] in w_int:
+                        emotional_strength += 0.5
+                        print("BLANK W_INT EMO:",tup, "for EMOTION:",emotion)
+                    # Counts emotional strength: finds BLANK BLANK EMO, so just the lonley emo word without intensifiers or negation words in front.
+                    if tup[0] not in neg_words and tup[1] not in ints_and_neg_words:
+                        emotional_strength += 1.0
+                        print("BLANK BLANK EMO:",tup, "for EMOTION:",emotion)
 
 
 # Prints out the "single counts" only right now, next the negation words
 print("big_dict: ",json.dumps(big_dict, indent=1))
+print("all_emo_words count:", all_emo_words)
+print("counts emotional bigrams:", bigrams)
+print("counts emotional trigrams:", trigram)
+print("count of emotional strength:",emotional_strength)
