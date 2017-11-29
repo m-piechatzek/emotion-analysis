@@ -4,13 +4,17 @@
 #                 FRANCESCA RAMUNNO              #
 #               AND MONIKA PIECHATZEK            #
 ##################################################
+
 # Good site for intensifiers: https://lognlearn.jimdo.com/grammar-tips/adverbs/intensifiers-adverbs-of-degree/
 import nltk as nltk
+import math
 from nltk import *
 import os
 from nltk.util import ngrams
 from collections import Counter
 import json
+import prettytable
+
 # -- THINGS TO COUNT -- #
 # 1) EMOTION WORD, ALONE, NOT PRECEDED BY VALENCY SHIFTER
 # 2) EMOTION WORD IN A BIGRAM, PRECEDED BY ONE OR TWO NEGATION WORDS
@@ -47,10 +51,17 @@ def directory_input(message):
 
 # Makes a trigram out of the novel only
 novel_root = directory_input("Please enter a novel directory: ")
+print("")
+root="tmp"
+
+novel_names = []
+
 for subdir, dirs, files in os.walk(novel_root):
     for file in files:
         print("Filtering " + file + " and finding bigrams....")
+        print("")
         novel_name = file
+        novel_names.append(novel_name)
         novels[file] = {}
         # prints out the words in the L8 files
         file = open(novel_root+"/"+file).read()
@@ -88,8 +99,10 @@ for subdir, dirs, files in os.walk(novel_root):
             holding = []
 
 
-        # Gets the L8 Words
-        root = directory_input("Please enter a directory path for the 8 texts: ")
+        # Gets the L8 Words, only asks once
+        if root == "tmp":
+            root = directory_input("Please enter a directory path for the 8 texts: ")
+
         for subdir, dirs, files in os.walk(root):
             for file in files:
                 # opens txt file and reads it
@@ -179,15 +192,116 @@ for subdir, dirs, files in os.walk(novel_root):
                             # print("BLANK BLANK EMO:",tup, "for EMOTION:",emotion)
                         # Removes tuple from the novel so there will be no duplicate counts (ie. 'I am happy' could be both joy and trust)
                         novel_pop.remove(tup)
-            print(novel_name,": all_emo_words count unigrams:", all_emo_words)
+            print("")
+            print("Information found: ")
+            print("")
+            print("Token count:",len(token))
+            print("Sentence count:",len(sent_toke))
+            print("")
+
+            percent_em_exp = (all_emo_words / len(token)) * 100
+
+            to_print = [novel_name,all_emo_words,bigrams,trigram,emotional_strength,percent_em_exp]
+            tbl = prettytable.PrettyTable(
+                ["Novel", "# emotional words-unigram", "# emotional words-bigram", "# emotional words-trigram",
+                 "Emotional Strength","% emotional expressions"])
+            tbl.add_row(to_print)
+            print(tbl)
             all_emo_words = 0
-            print(novel_name,": counts emotional bigrams:", bigrams)
             bigrams = 0
-            print(novel_name,": counts emotional trigrams:", trigram)
             trigram = 0
-            print(novel_name,": count of emotional strength:",emotional_strength)
             emotional_strength = 0
+            print("")
         # Saves each novels 16 word count
         novels[novel_name] = big_dict
 
-print("novels:",json.dumps(novels, indent=1))
+print("")
+print("-- ANALYSIS OF THESE FINDINGS --")
+print("")
+
+# -- build a table -- #
+head = [k for k in novels]
+head.insert(0,"Emotion")
+emotions = []
+to_print = []
+for k,v in novels.items():
+    for k1,v1 in v.items():
+        if k1 not in emotions:
+            emotions.append(k1)
+            to_print.append([k1])
+        for val in to_print:
+            if val[0] == k1:
+                val.append(v1)
+
+pos = ["joy","trust"]
+neg = ["disgust","fear","anger","sadness"]
+neut = ["anticipation", "surprise"]
+
+txt1_pos_count = 0
+txt1_neg_count = 0
+txt1_neut_count = 0
+
+txt2_pos_count = 0
+txt2_neg_count = 0
+txt2_neut_count = 0
+
+op_tbl = prettytable.PrettyTable(head)
+for arr in to_print:
+    op_tbl.add_row(arr)
+    if arr[0] in pos:
+        txt1_pos_count = txt1_pos_count + arr[1]
+        txt2_pos_count = txt2_pos_count + arr[2]
+    if arr[0] in neg:
+        txt1_neg_count = txt1_neg_count + arr[1]
+        txt2_neg_count = txt2_neg_count + arr[2]
+    if arr[0] in neut:
+        txt1_neut_count = txt1_neut_count + arr[1]
+        txt2_neut_count = txt2_neut_count + arr[2]
+
+print("")
+print("EMOTION COUNTS COMPARISON BETWEEN NOVELS:")
+print("")
+print(op_tbl)
+
+# -- make lists for each novel of negativity, positivity, neutrality -- #
+novel1 = [novel_names[0], txt1_neg_count, txt1_pos_count, txt1_neut_count]
+novel2 = [novel_names[1], txt2_neg_count, txt2_pos_count, txt2_neut_count]
+
+print("")
+print("POSITIVITY, NEGATIVITY, NEUTRALITY IN THESE NOVELS:")
+print("")
+
+# -- put em in a table! -- #
+pnn_table = prettytable.PrettyTable(["Novel","Negativity","Positivity","Neutrality"])
+pnn_table.add_row(novel1)
+pnn_table.add_row(novel2)
+print(pnn_table)
+print("")
+
+if abs(novel1[1] - novel2[1]) < 50:
+    print("These novels have similar negativity.")
+else:
+    if novel1[1] > novel2[1]:
+        print(novel_names[0], "is more negative than", novel_names[1])
+    else:
+        print(novel_names[1], "is more negative than", novel_names[0])
+
+if abs(novel1[2] - novel2[2]) < 50:
+    print("These novels have similar positivity.")
+else:
+    if novel1[2] > novel2[2]:
+        print(novel_names[0], "is more positive than", novel_names[1])
+    else:
+        print(novel_names[0], "is more positive than", novel_names[0])
+
+if abs(novel1[3] - novel2[3]) < 50:
+    print("These novels have similar neutrality.")
+else:
+    if novel1[3] > novel2[3]:
+        print(novel_names[0], "is more neutral than", novel_names[1])
+    else:
+        print(novel_names[1], "is more neutral than", novel_names[0])
+
+
+
+
